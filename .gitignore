@@ -1,0 +1,8 @@
+# compiled binaries
+arc
+acr
+*.exe
+
+# OS/editor cruft
+.DS_Store
+*.swp
