@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"flag"
 
 	"acr/internal/llm"
 	"acr/internal/prompt"
@@ -13,7 +14,13 @@ import (
 
 func main() {
 	// 1. scan the repo
-	files, err := scanner.Scan(".")
+
+	query := flag.String("query", "", "the question to ask ACR")
+  model := flag.String("model", "bonsai-27b", "which model to use")
+  repo := flag.String("repo", ".", "path to the repo to scan")
+  flag.Parse()
+
+	files, err := scanner.Scan(*repo)
 	if err != nil {
 		fmt.Println("scan error:", err)
 		os.Exit(1)
@@ -21,8 +28,7 @@ func main() {
 	fmt.Printf("Found %d files\n", len(files))
 
 	// 2. retrieve chunks relevant to the query
-	query := "What does the scanner package do?"
-	chunks, err := retrieval.Retrieve(".", files, query)
+	chunks, err := retrieval.Retrieve(*repo, files, *query)
 	if err != nil {
 		fmt.Println("retrieval error:", err)
 		os.Exit(1)
@@ -34,10 +40,10 @@ func main() {
 	fmt.Printf("scheduled %d of %d chunks within budget\n", len(selected), len(chunks))
 
 	// 4. build the full prompt
-	fullPrompt := prompt.Build(selected, query)
+	fullPrompt := prompt.Build(selected, *query)
 
 	// 5. ask the model
-	reply, err := llm.Ask("bonsai-27b", fullPrompt)
+	reply, err := llm.Ask(*model, fullPrompt)
 	if err != nil {
 		fmt.Println("llm error:", err)
 		os.Exit(1)

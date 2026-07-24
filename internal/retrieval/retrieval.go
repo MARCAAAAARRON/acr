@@ -2,6 +2,7 @@ package retrieval
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 
 	"acr/internal/scanner"
@@ -39,10 +40,16 @@ func Retrieve(root string, files []scanner.FileInfo, query string) ([]Chunk, err
 		}
 		content := string(data)
 		lower := strings.ToLower(content)
+		filename := strings.ToLower(filepath.Base(f.Path))
 
 		score := 0
 		for _, kw := range keywords {
 			score += strings.Count(lower, kw)
+		}
+		for _, kw := range keywords {
+			if strings.Contains(filename, kw) {
+				score += 50
+			}
 		}
 
 		if score > 0 {
