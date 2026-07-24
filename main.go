@@ -16,7 +16,7 @@ func main() {
 	// 1. scan the repo
 
 	query := flag.String("query", "", "the question to ask ACR")
-  model := flag.String("model", "bonsai-27b", "which model to use")
+  model := flag.String("model", "qwen2.5-coder-7b-instruct", "which model to use")
   repo := flag.String("repo", ".", "path to the repo to scan")
   flag.Parse()
 
