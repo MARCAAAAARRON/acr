@@ -52,7 +52,7 @@ func main() {
 			fmt.Printf("%-50s score=%-4d tokens=%-6d %s (running total: %d/%d)\n",
 				d.Chunk.Path, d.Chunk.Score, d.Tokens, status, used, *budget)
 		}
-		fmt.Println("---------------------------\n")
+		fmt.Println("---------------------------")
 	}
 
 	// 4. build the full prompt

@@ -7,6 +7,7 @@ import (
 )
 
 const charsPerToken = 4
+const minScore = 10 // chunks below this score are excluded even if they'd fit in budget
 
 // EstimateTokens gives a rough token count for a string.
 func EstimateTokens(s string) int {
@@ -34,7 +35,7 @@ func Schedule(chunks []retrieval.Chunk, budgetTokens int) ([]retrieval.Chunk, []
 
 	for _, c := range chunks {
 		cost := EstimateTokens(c.Content)
-		include := used+cost <= budgetTokens
+		include := used+cost <= budgetTokens && c.Score >= minScore
 
 		decisions = append(decisions, Decision{
 			Chunk:    c,
@@ -49,4 +50,4 @@ func Schedule(chunks []retrieval.Chunk, budgetTokens int) ([]retrieval.Chunk, []
 	}
 
 	return selected, decisions
-}	
+}

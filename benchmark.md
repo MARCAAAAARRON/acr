@@ -110,3 +110,29 @@ budget constraint, which is working as intended. Also noted: very small, low-rel
 files (e.g. score 7, ~37 tokens) can now slip into the schedule "for free" near the
 end of a budget, since they're cheap enough to fit even at low relevance. Not
 currently harmful, but worth watching as budgets get tighter.
+## Fix: Minimum Score Floor (free-rider chunks)
+
+After density scoring, a side effect appeared: very small, low-relevance files
+(e.g. `app.service.ts`, score 7, ~37 tokens) could slip into the schedule near the
+end of a budget purely because they were cheap enough to fit — not because they
+were actually relevant.
+
+Added `minScore = 10` as a hard floor in `Schedule`: a chunk must now score at or
+above this threshold to be included, regardless of whether it would fit in budget.
+
+**Before/after, same repo, same query, budget 500:**
+
+| File | Score | Included before floor | Included after floor |
+|---|---|---|---|
+| `app.service.ts` | 7 | Yes (free rider) | **No** |
+| `redis.provider.ts` | 79 | No (budget full) | **Yes** (took the freed slot) |
+| `incr-and-expire.lua` | 74 | Yes | Yes (unaffected) |
+
+Removing the free rider let a more relevant file (`redis.provider.ts`) take its
+slot instead, and the resulting answer reached for additional real points (security,
+flexibility) not present in earlier runs — likely because less irrelevant filler
+was competing for the model's attention.
+
+**Honest caveat:** `minScore = 10` is a judgment call based on this one example,
+not a proven-optimal threshold. It may need tuning per-repo or exposed as a flag
+later if it turns out to cut relevant chunks on other codebases.
