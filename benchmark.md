@@ -31,3 +31,18 @@ Same test query used across all models for fair comparison: `--query "what does 
 - [ ] Try glm-z1-9b-0414 (reasoning variant of glm-4-9b) for comparison
 - [ ] Try Qwen 3.5 4B once downloaded — different context/precision tradeoff
 - [ ] Revisit Bonsai with thinking_budget_tokens lowered to test speed vs quality tradeoff
+
+## Token Budget Impact (real repo test)
+
+Tested against nestjs-ratelimiter-gateway (22 files), same query across three budgets:
+`"why does the rate limiter use Lua scripts instead of separate Redis calls"`
+
+| Budget | Chunks scheduled | Real prompt tokens | Answer quality |
+|---|---|---|---|
+| 500 | 2 of 18 | ~600 | Generic — correct concept, no filenames, no bug details |
+| 3000 | 3 of 18 | 2,923 | Correct — named `incr-and-expire.lua`, explained the crash-window bug |
+| 8000 | 18 of 18 (all matched) | 6,418 | Comprehensive — race conditions, token bucket complexity, performance, distributed consistency |
+
+**Takeaway:** on a real 22-file repo, the original 500-token default was severely starving the model — missing the exact file (`incr-and-expire.lua`) that mattered most for this question. At 8000, every matched chunk fit; there was nothing left to gain from raising the budget further on this repo/query. Default changed to 4000 as a middle ground — well past the "generic answer" zone without assuming every repo maxes out around 6-8K tokens.
+
+This is a concrete demonstration of ACR's core thesis: context management quality drives output quality more directly than model choice does, once accuracy floors are met.

@@ -19,6 +19,7 @@ var skipDirs = map[string]bool{
 var allowedExt = map[string]bool{
 	"go": true, "php": true, "js": true, "ts": true,
 	"py": true, "java": true, "rb": true, "md": true,
+	"lua": true, "rs": true, "c": true, "cpp": true,
 }
 
 // FileInfo describes one source file we found worth indexing.

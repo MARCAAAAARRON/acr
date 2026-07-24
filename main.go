@@ -18,6 +18,7 @@ func main() {
 	query := flag.String("query", "", "the question to ask ACR")
   model := flag.String("model", "qwen2.5-coder-7b-instruct", "which model to use")
   repo := flag.String("repo", ".", "path to the repo to scan")
+	budget := flag.Int("budget", 4000, "token budget for scheduling context")
   flag.Parse()
 
 	files, err := scanner.Scan(*repo)
@@ -36,7 +37,7 @@ func main() {
 	fmt.Printf("matched %d chunks\n", len(chunks))
 
 	// 3. schedule chunks within a token budget
-	selected := scheduler.Schedule(chunks, 500)
+	selected := scheduler.Schedule(chunks, *budget)
 	fmt.Printf("scheduled %d of %d chunks within budget\n", len(selected), len(chunks))
 
 	// 4. build the full prompt
