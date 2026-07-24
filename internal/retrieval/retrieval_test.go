@@ -3,14 +3,13 @@ package retrieval
 import (
 	"os"
 	"path/filepath"
-	"testing"
 	"strings"
+	"testing"
 
 	"acr/internal/scanner"
 )
 
 func TestFilenameMatchScoresHigherThanBodyOnly(t *testing.T) {
-	// set up a temporary directory with two fake files
 	dir := t.TempDir()
 
 	mainContent := "package main\nfunc main() {}\n" // barely mentions "main"
@@ -24,7 +23,7 @@ func TestFilenameMatchScoresHigherThanBodyOnly(t *testing.T) {
 		{Path: "other.go", Ext: "go"},
 	}
 
-	chunks, err := Retrieve(dir, files, "what does main.go do")
+	chunks, err := Retrieve(dir, files, "what does main.go do", nil)
 	if err != nil {
 		t.Fatalf("Retrieve failed: %v", err)
 	}
@@ -47,12 +46,9 @@ func TestFilenameMatchScoresHigherThanBodyOnly(t *testing.T) {
 func TestDensityScoringFavorsShortRelevantFiles(t *testing.T) {
 	dir := t.TempDir()
 
-	// short file: the query word appears twice, in very little surrounding text
 	shortContent := "widget widget\n"
 	os.WriteFile(filepath.Join(dir, "short.go"), []byte(shortContent), 0644)
 
-	// long file: same two mentions of "widget", but diluted with a lot of
-	// unrelated filler text — a pure raw-count scorer would call this a tie
 	longContent := "widget\n" + strings.Repeat("filler text unrelated to anything\n", 50) + "widget\n"
 	os.WriteFile(filepath.Join(dir, "long.go"), []byte(longContent), 0644)
 
@@ -61,9 +57,7 @@ func TestDensityScoringFavorsShortRelevantFiles(t *testing.T) {
 		{Path: "long.go", Ext: "go"},
 	}
 
-	// query deliberately doesn't match either filename, so only body scoring
-	// (raw count + density) is being tested here
-	chunks, err := Retrieve(dir, files, "widget")
+	chunks, err := Retrieve(dir, files, "widget", nil)
 	if err != nil {
 		t.Fatalf("Retrieve failed: %v", err)
 	}

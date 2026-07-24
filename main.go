@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"acr/internal/gitctx"
 	"acr/internal/llm"
 	"acr/internal/prompt"
 	"acr/internal/retrieval"
@@ -20,7 +21,6 @@ func main() {
 	explain := flag.Bool("explain", false, "show scheduler decisions")
 	flag.Parse()
 
-	// 1. scan the repo
 	files, err := scanner.Scan(*repo)
 	if err != nil {
 		fmt.Println("scan error:", err)
@@ -28,15 +28,18 @@ func main() {
 	}
 	fmt.Printf("Found %d files\n", len(files))
 
-	// 2. retrieve chunks relevant to the query
-	chunks, err := retrieval.Retrieve(*repo, files, *query)
+	modifiedFiles := gitctx.ModifiedFiles(*repo)
+	if len(modifiedFiles) > 0 {
+		fmt.Printf("Detected %d modified/staged/untracked files via git\n", len(modifiedFiles))
+	}
+
+	chunks, err := retrieval.Retrieve(*repo, files, *query, modifiedFiles)
 	if err != nil {
 		fmt.Println("retrieval error:", err)
 		os.Exit(1)
 	}
 	fmt.Printf("matched %d chunks\n", len(chunks))
 
-	// 3. schedule chunks within a token budget
 	selected, decisions := scheduler.Schedule(chunks, *budget)
 	fmt.Printf("scheduled %d of %d chunks within budget\n", len(selected), len(chunks))
 
@@ -55,10 +58,8 @@ func main() {
 		fmt.Println("---------------------------")
 	}
 
-	// 4. build the full prompt
 	fullPrompt := prompt.Build(selected, *query)
 
-	// 5. ask the model
 	reply, err := llm.Ask(*model, fullPrompt)
 	if err != nil {
 		fmt.Println("llm error:", err)
