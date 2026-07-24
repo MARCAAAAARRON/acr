@@ -31,7 +31,7 @@ Same test query used across all models for fair comparison: `--query "what does 
 - [ ] Try glm-z1-9b-0414 (reasoning variant of glm-4-9b) for comparison
 - [ ] Try Qwen 3.5 4B once downloaded — different context/precision tradeoff
 - [ ] Revisit Bonsai with thinking_budget_tokens lowered to test speed vs quality tradeoff
-- [ ] Replace raw keyword-count scoring with density-based scoring (matches / file length) — fixes structural bias against short-but-critical files (see Retrieval Limitation section)
+- [x] Replace raw keyword-count scoring with density-based scoring — DONE, see "Fix: Density-Based Scoring" below
 
 ## Token Budget Impact (real repo test)
 
@@ -76,6 +76,37 @@ one repo/file-type combination and wouldn't generalize to the next repo's
 equivalent short-but-critical file (a small config file, a short but crucial
 utility function, etc).
 
-**Real fix, deferred:** switch from raw keyword *count* to keyword *density*
+**Real fix:** switch from raw keyword *count* to keyword *density*
 (matches relative to file length), so short, highly relevant files stop being
-structurally penalized against longer, loosely relevant ones. Not yet implemented.
+structurally penalized against longer, loosely relevant ones. Implemented — see below.
+
+## Fix: Density-Based Scoring (resolves the limitation above)
+
+Added a density bonus to retrieval scoring: `density = (rawCount / fileLength) * 1000`,
+summed with the existing raw keyword count. Short files with a high proportion of
+relevant content are no longer structurally penalized against longer files that
+merely accumulate more raw matches.
+
+**Before/after, same repo, same query, same 500-token budget:**
+
+| File | Score before | Score after | Included before | Included after |
+|---|---|---|---|---|
+| `incr-and-expire.lua` | 54 | 74 | No | **Yes** |
+| `README.md` | 155 | 171 | No | No |
+| `ratelimiter.module.ts` | 128 | 160 | Yes | Yes |
+
+**Answer quality, before fix:**
+> "...ensures that all rate limiting operations are performed atomically, consistently,
+> and efficiently..." — generic, no specific mechanics, never read the actual script.
+
+**Answer quality, after fix:**
+> "...increments the counter... sets an expiration on the key based on the provided
+> window size..." — describes the actual script's real logic, because the model
+> actually received it in context this time.
+
+**Remaining honest limitation:** `token-bucket.lua` (score 71) still narrowly misses
+the 500-token cutoff — density scoring corrected the bias, it didn't eliminate the
+budget constraint, which is working as intended. Also noted: very small, low-relevance
+files (e.g. score 7, ~37 tokens) can now slip into the schedule "for free" near the
+end of a budget, since they're cheap enough to fit even at low relevance. Not
+currently harmful, but worth watching as budgets get tighter.
