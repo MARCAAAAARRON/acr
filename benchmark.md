@@ -46,3 +46,35 @@ Tested against nestjs-ratelimiter-gateway (22 files), same query across three bu
 **Takeaway:** on a real 22-file repo, the original 500-token default was severely starving the model — missing the exact file (`incr-and-expire.lua`) that mattered most for this question. At 8000, every matched chunk fit; there was nothing left to gain from raising the budget further on this repo/query. Default changed to 4000 as a middle ground — well past the "generic answer" zone without assuming every repo maxes out around 6-8K tokens.
 
 This is a concrete demonstration of ACR's core thesis: context management quality drives output quality more directly than model choice does, once accuracy floors are met.
+
+## Retrieval Limitation: Short-File Scoring Bias
+
+Discovered via `--explain` on nestjs-ratelimiter-gateway, budget 500:
+
+`src\ratelimiter\scripts\incr-and-expire.lua` — the file the README names as the
+core atomicity fix for this project — scored only 54 (near the bottom of 18
+matched chunks) and was cut before the model ever saw it. Meanwhile `README.md`
+scored highest (155) but was too large (2,318 tokens) to fit in a 500 budget at all.
+Neither the best summary nor the actual implementation made it into context.
+
+Result: the model's answer was accurate but generic — correct on atomicity in the
+abstract, but never named `incr-and-expire.lua`, never referenced the specific
+crash-window bug, never mentioned token bucket's refill math. Raising the budget
+to 3000+ (see Token Budget Impact above) fixed this for this specific query, but
+that's a workaround, not a fix to the underlying issue.
+
+**Root cause:** retrieval scores by raw keyword *count*, which structurally
+penalizes short files. A 49-token Lua script mentioning "atomic"/"lua"-relevant
+terms twice will always lose to a 600-token file mentioning them four times,
+regardless of which file is actually more relevant. Same underlying issue as the
+earlier `scanner.go` self-naming problem — this is a systemic scoring flaw, not a
+one-off bug specific to `.lua` files.
+
+**Rejected fix:** adding a `.lua`-specific score boost. This would only patch this
+one repo/file-type combination and wouldn't generalize to the next repo's
+equivalent short-but-critical file (a small config file, a short but crucial
+utility function, etc).
+
+**Real fix, deferred:** switch from raw keyword *count* to keyword *density*
+(matches relative to file length), so short, highly relevant files stop being
+structurally penalized against longer, loosely relevant ones. Not yet implemented.
