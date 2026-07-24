@@ -31,6 +31,7 @@ Same test query used across all models for fair comparison: `--query "what does 
 - [ ] Try glm-z1-9b-0414 (reasoning variant of glm-4-9b) for comparison
 - [ ] Try Qwen 3.5 4B once downloaded — different context/precision tradeoff
 - [ ] Revisit Bonsai with thinking_budget_tokens lowered to test speed vs quality tradeoff
+- [ ] Replace raw keyword-count scoring with density-based scoring (matches / file length) — fixes structural bias against short-but-critical files (see Retrieval Limitation section)
 
 ## Token Budget Impact (real repo test)
 

@@ -42,10 +42,25 @@ func Retrieve(root string, files []scanner.FileInfo, query string) ([]Chunk, err
 		lower := strings.ToLower(content)
 		filename := strings.ToLower(filepath.Base(f.Path))
 
-		score := 0
+		// raw keyword count — rewards files that mention query terms a lot
+		rawCount := 0
 		for _, kw := range keywords {
-			score += strings.Count(lower, kw)
+			rawCount += strings.Count(lower, kw)
 		}
+
+		// density bonus — rewards files where matches make up a large
+		// proportion of the content, so short-but-relevant files (like a
+		// small .lua script) aren't buried by longer files that just have
+		// more raw text for matches to accumulate in.
+		density := 0
+		if len(content) > 0 {
+			density = int(float64(rawCount) / float64(len(content)) * 1000)
+		}
+
+		score := rawCount + density
+
+		// filename match bonus — a query mentioning the file's own name
+		// is a very strong relevance signal, stronger than body text.
 		for _, kw := range keywords {
 			if strings.Contains(filename, kw) {
 				score += 50
