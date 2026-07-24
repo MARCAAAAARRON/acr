@@ -1,9 +1,9 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
-	"flag"
 
 	"acr/internal/llm"
 	"acr/internal/prompt"
@@ -13,14 +13,14 @@ import (
 )
 
 func main() {
-	// 1. scan the repo
-
 	query := flag.String("query", "", "the question to ask ACR")
-  model := flag.String("model", "qwen2.5-coder-7b-instruct", "which model to use")
-  repo := flag.String("repo", ".", "path to the repo to scan")
+	model := flag.String("model", "qwen2.5-coder-7b-instruct", "which model to use")
+	repo := flag.String("repo", ".", "path to the repo to scan")
 	budget := flag.Int("budget", 4000, "token budget for scheduling context")
-  flag.Parse()
+	explain := flag.Bool("explain", false, "show scheduler decisions")
+	flag.Parse()
 
+	// 1. scan the repo
 	files, err := scanner.Scan(*repo)
 	if err != nil {
 		fmt.Println("scan error:", err)
@@ -37,8 +37,23 @@ func main() {
 	fmt.Printf("matched %d chunks\n", len(chunks))
 
 	// 3. schedule chunks within a token budget
-	selected := scheduler.Schedule(chunks, *budget)
+	selected, decisions := scheduler.Schedule(chunks, *budget)
 	fmt.Printf("scheduled %d of %d chunks within budget\n", len(selected), len(chunks))
+
+	if *explain {
+		fmt.Println("\n--- scheduler decisions ---")
+		used := 0
+		for _, d := range decisions {
+			status := "SKIPPED"
+			if d.Included {
+				status = "included"
+				used += d.Tokens
+			}
+			fmt.Printf("%-50s score=%-4d tokens=%-6d %s (running total: %d/%d)\n",
+				d.Chunk.Path, d.Chunk.Score, d.Tokens, status, used, *budget)
+		}
+		fmt.Println("---------------------------\n")
+	}
 
 	// 4. build the full prompt
 	fullPrompt := prompt.Build(selected, *query)
